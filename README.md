@@ -46,7 +46,7 @@ On first device build or archive, Xcode may require a Development Team in the ta
 - Addition, subtraction, multiplication, and division practice
 - Difficulty levels for addition and subtraction: Easy, Medium, Hard, Expert
 - Multiplication and division levels: 2s through 12s, plus Mixed
-- Configurable test length: 5, 10, 15, 20, 25, 30, or 40 questions
+- Configurable test length: 5, 10, 15, 20, 25, 30, 40, or 50 questions (defaults to 20)
 - Optional time limits from 30 seconds to 5 minutes, plus Unlimited mode
 - Optional student name, with a default name setting
 - Custom number pad for answer entry
@@ -70,6 +70,12 @@ On first device build or archive, Xcode may require a Development Team in the ta
 - Saved tests can be searched and deleted
 - Settings include a default student name and a delete-all-data action
 
+### App Store Rating Prompt
+
+- After the 1st, 5th, and 10th completed standard test, the results screen asks iOS to show the App Store rating prompt
+- Quit tests and challenges don't count toward the total
+- iOS decides whether the prompt actually appears (at most 3 times per year, and not for users who already rated); it never appears in TestFlight builds
+
 ## Privacy
 
 The app does not use accounts, ads, analytics, network requests, or third-party SDKs. User-entered names, test history, and high scores stay on device.
@@ -78,11 +84,12 @@ The app does not use accounts, ads, analytics, network requests, or third-party 
 
 - No tracking
 - No collected data types
-- UserDefaults access for app functionality, used by `@AppStorage` for the default student name
+- UserDefaults access for app functionality, used for the default student name and the rating-prompt counters
 
 ## Release Notes
 
 - App icon asset is included at 1024 x 1024.
 - The generated Info.plist is configured through Xcode build settings.
+- `ITSAppUsesNonExemptEncryption` is set to `NO`, so App Store Connect doesn't ask the export compliance question on each upload.
 - The app currently targets both iPhone and iPad.
 - Before App Store submission, confirm app name/branding rights and prepare accurate App Store Connect metadata, screenshots, support URL, and privacy answers.
