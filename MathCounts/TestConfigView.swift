@@ -6,7 +6,7 @@ struct TestConfigView: View {
     @StateObject private var settings = SettingsManager.shared
     @State private var studentName: String = ""
     @State private var selectedDifficulty: Int = 0  // index into picker options
-    @State private var selectedNumQuestions: Int = 2 // index
+    @State private var selectedNumQuestions: Int = 3 // index (3 = 20 questions)
     @State private var selectedTime: Int = 0 // index (0 = unlimited)
     @State private var multiplicationLevel: Int = 0 // index for mult level picker
     @State private var navigateToTest = false
@@ -18,7 +18,7 @@ struct TestConfigView: View {
     var pickerHeight: CGFloat { verticalSizeClass == .compact ? 80 : (isIPad ? 180 : 120) }
     
     let timeOptions = ["Unlimited", "0:30", "1:00", "1:30", "2:00", "2:30", "3:00", "5:00"]
-    let questionOptions = [5, 10, 15, 20, 25, 30, 40]
+    let questionOptions = [5, 10, 15, 20, 25, 30, 40, 50]
     
     var difficultyOptions: [String] {
         if operation == .multiplication || operation == .division {

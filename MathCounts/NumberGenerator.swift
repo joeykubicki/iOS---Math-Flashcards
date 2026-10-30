@@ -16,6 +16,10 @@ struct NumberGenerator {
     private static func getEasyAddition(_ n: Int) -> [[Int]] {
         var questions = Array(repeating: [0, 0, 0], count: n)
         for i in 0..<n {
+            // Only 11 values per operand, so at 25+ questions the repeat limit
+            // can become unsatisfiable. Loosen it every 200 failed attempts
+            // instead of looping forever.
+            var attempts = 0
             repeat {
                 if Int.random(in: 0..<2) == 0 {
                     questions[i][0] = Int.random(in: 1...10)
@@ -24,7 +28,8 @@ struct NumberGenerator {
                     questions[i][0] = Int.random(in: 0...10)
                     questions[i][1] = Int.random(in: 0...10)
                 }
-            } while checkExists(questions, i, n/10)
+                attempts += 1
+            } while checkExists(questions, i, n/10 + attempts/200)
             questions[i][2] = questions[i][0] + questions[i][1]
         }
         return questions
