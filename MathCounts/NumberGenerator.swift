@@ -228,13 +228,14 @@ struct NumberGenerator {
     
     static func getChallengeMultiplication(_ n: Int) -> [[Int]] {
         var questions = Array(repeating: [0, 0, 0], count: n)
+        let repeats = n / 10
         for i in 0..<n {
             var a = 0, b = 0, ans = 0
-            while ans > 200 || ans < 50 {
+            repeat {
                 a = Int.random(in: 3...25)
                 b = Int.random(in: 3...25)
                 ans = a * b
-            }
+            } while ans > 200 || ans < 50 || checkExistsPair(questions, i, a, b, repeats)
             questions[i] = [a, b, ans]
         }
         return questions
@@ -275,12 +276,12 @@ struct NumberGenerator {
     // MARK: - Challenge Modes
     
     static func getSquareRoot() -> [Int] {
-        let answer = Int.random(in: 0...20)
+        let answer = Int.random(in: 1...20)
         return [answer * answer, answer]
     }
-    
+
     static func getSquare() -> [Int] {
-        let q = Int.random(in: 0...20)
+        let q = Int.random(in: 1...20)
         return [q, q * q]
     }
     

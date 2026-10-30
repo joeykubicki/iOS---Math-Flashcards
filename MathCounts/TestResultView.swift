@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 struct TestResultView: View {
     let testId: Int64
@@ -9,8 +10,11 @@ struct TestResultView: View {
     let timeRemaining: String
     let isFromTest: Bool
     
-    @State private var questions: [QuestionResult] = []
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var navState: AppNavigationState
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+
+    var isIPad: Bool { horizontalSizeClass == .regular }
     
     var numCorrect: Int { cards.filter { $0.isCorrect }.count }
     var percentage: Double { cards.isEmpty ? 0 : Double(numCorrect) / Double(cards.count) * 100 }
@@ -39,6 +43,8 @@ struct TestResultView: View {
     }
     
     var body: some View {
+        GeometryReader { geo in
+        let contentMaxWidth: CGFloat = isIPad ? geo.size.width * 0.70 : .infinity
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
             
@@ -47,32 +53,32 @@ struct TestResultView: View {
                     // Score header
                     VStack(spacing: 12) {
                         Text(studentName)
-                            .font(.title2)
+                            .font(isIPad ? .largeTitle : .title2)
                             .fontWeight(.bold)
                         
                         ZStack {
                             Circle()
                                 .stroke(gradeColor.opacity(0.2), lineWidth: 12)
-                                .frame(width: 120, height: 120)
+                                .frame(width: isIPad ? 170 : 120, height: isIPad ? 170 : 120)
                             Circle()
                                 .trim(from: 0, to: CGFloat(percentage / 100))
                                 .stroke(gradeColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                                .frame(width: 120, height: 120)
+                                .frame(width: isIPad ? 170 : 120, height: isIPad ? 170 : 120)
                                 .rotationEffect(.degrees(-90))
                                 .animation(.easeInOut(duration: 1.0), value: percentage)
                             
                             VStack(spacing: 2) {
                                 Text(gradeLetter)
-                                    .font(.system(size: 36, weight: .bold))
+                                    .font(.system(size: isIPad ? 52 : 36, weight: .bold))
                                     .foregroundStyle(gradeColor)
                                 Text(String(format: "%.0f%%", percentage))
-                                    .font(.caption)
+                                    .font(isIPad ? .subheadline : .caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
                         
                         Text("\(numCorrect) out of \(cards.count) correct")
-                            .font(.headline)
+                            .font(isIPad ? .title2 : .headline)
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -91,7 +97,7 @@ struct TestResultView: View {
                     // Question breakdown
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Question Breakdown")
-                            .font(.headline)
+                            .font(isIPad ? .title2 : .headline)
                             .padding(.horizontal, 20)
                         
                         VStack(spacing: 1) {
@@ -105,9 +111,11 @@ struct TestResultView: View {
                     }
                     
                     // Done button
-                    NavigationLink(destination: HomeView()) {
+                    Button {
+                        navState.goToRoot()
+                    } label: {
                         Text("Done")
-                            .font(.headline)
+                            .font(isIPad ? .title2 : .headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(accentColor)
@@ -118,17 +126,29 @@ struct TestResultView: View {
                     .padding(.bottom, 30)
                 }
                 .padding(.top, 20)
+                .frame(maxWidth: contentMaxWidth)
+                .frame(maxWidth: .infinity)
             }
+        }
         }
         .navigationTitle("Results")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                NavigationLink(destination: HomeView()) {
-                    Text("Home")
-                }
+                Button("Home") { navState.goToRoot() }
             }
+        }
+        .task {
+            guard isFromTest, let milestone = ReviewPrompt.dueMilestone else { return }
+            // Let the results screen settle before the system prompt appears.
+            guard (try? await Task.sleep(for: .seconds(1.5))) != nil else { return }
+            // Pass the scene explicitly; the SwiftUI requestReview environment
+            // action failed here with "Could not get scene to request a review".
+            guard let scene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else { return }
+            ReviewPrompt.markPrompted(milestone)
+            AppStore.requestReview(in: scene)
         }
     }
 }
@@ -138,21 +158,23 @@ struct StatBadge: View {
     let label: String
     let value: String
     let color: Color
-    
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    var isIPad: Bool { horizontalSizeClass == .regular }
+
     var body: some View {
         VStack(spacing: 6) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(isIPad ? .largeTitle : .title2)
                 .foregroundStyle(color)
             Text(value)
-                .font(.subheadline)
+                .font(isIPad ? .title3 : .subheadline)
                 .fontWeight(.semibold)
             Text(label)
-                .font(.caption)
+                .font(isIPad ? .subheadline : .caption)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(.vertical, isIPad ? 24 : 16)
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(12)
     }
@@ -161,16 +183,18 @@ struct StatBadge: View {
 struct QuestionResultRow: View {
     let card: Card
     let operation: Operation
-    
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    var isIPad: Bool { horizontalSizeClass == .regular }
+
     var body: some View {
         HStack {
             Text("#\(card.questionNum)")
-                .font(.caption)
+                .font(isIPad ? .subheadline : .caption)
                 .foregroundStyle(.secondary)
-                .frame(width: 28, alignment: .leading)
+                .frame(width: isIPad ? 40 : 28, alignment: .leading)
             
             Text("\(card.firstNum) \(operation.sign) \(card.secondNum) = \(card.answer)")
-                .font(.system(.body, design: .monospaced))
+                .font(.system(isIPad ? .title3 : .body, design: .monospaced))
             
             Spacer()
             
@@ -183,7 +207,7 @@ struct QuestionResultRow: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.red)
                         Text(card.studentAnswer.isEmpty ? "—" : card.studentAnswer)
-                            .font(.caption2)
+                            .font(isIPad ? .caption : .caption2)
                             .foregroundStyle(.red)
                     }
                 }
@@ -193,7 +217,7 @@ struct QuestionResultRow: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.vertical, isIPad ? 14 : 10)
         .background(Color(.secondarySystemGroupedBackground))
     }
 }

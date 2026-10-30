@@ -184,6 +184,24 @@ class DatabaseManager {
         return results
     }
     
+    func deleteTest(id: Int64) {
+        // Delete associated questions first, then the test record
+        var stmt: OpaquePointer?
+        let deleteQ = "DELETE FROM question WHERE _id = ?"
+        if sqlite3_prepare_v2(db, deleteQ, -1, &stmt, nil) == SQLITE_OK {
+            sqlite3_bind_int64(stmt, 1, id)
+            sqlite3_step(stmt)
+        }
+        sqlite3_finalize(stmt)
+
+        let deleteT = "DELETE FROM test WHERE _id = ?"
+        if sqlite3_prepare_v2(db, deleteT, -1, &stmt, nil) == SQLITE_OK {
+            sqlite3_bind_int64(stmt, 1, id)
+            sqlite3_step(stmt)
+        }
+        sqlite3_finalize(stmt)
+    }
+
     func deleteAllTests() {
         execute("DELETE FROM test")
         execute("DELETE FROM question")
@@ -192,7 +210,7 @@ class DatabaseManager {
     // MARK: - High Scores
     
     func fetchHighScores(mode: Int) -> [HighScore] {
-        let sql = "SELECT * FROM high_score WHERE mode = ? ORDER BY score DESC LIMIT 3"
+        let sql = "SELECT * FROM high_score WHERE mode = ? ORDER BY score DESC LIMIT 10"
         var stmt: OpaquePointer?
         var results: [HighScore] = []
         if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
@@ -221,13 +239,30 @@ class DatabaseManager {
             rowId = sqlite3_last_insert_rowid(db)
         }
         sqlite3_finalize(stmt)
+        pruneHighScores(mode: mode)
         return rowId
     }
-    
+
     func shouldInsertHighScore(mode: Int, score: Int) -> Bool {
         let scores = fetchHighScores(mode: mode)
-        if scores.count < 3 { return true }
+        if scores.count < 10 { return true }
         return score > (scores.last?.score ?? 0)
+    }
+
+    private func pruneHighScores(mode: Int) {
+        // Keep only the top 10 scores per mode
+        let sql = """
+            DELETE FROM high_score WHERE mode = ? AND _id NOT IN (
+                SELECT _id FROM high_score WHERE mode = ? ORDER BY score DESC LIMIT 10
+            )
+        """
+        var stmt: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+            sqlite3_bind_int(stmt, 1, Int32(mode))
+            sqlite3_bind_int(stmt, 2, Int32(mode))
+            sqlite3_step(stmt)
+        }
+        sqlite3_finalize(stmt)
     }
     
     func updateHighScoreName(id: Int64, name: String) {

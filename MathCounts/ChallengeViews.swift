@@ -1,12 +1,21 @@
 import SwiftUI
 
 struct ChallengeMenuView: View {
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+
+    var isIPad: Bool { horizontalSizeClass == .regular }
+
     var body: some View {
+        GeometryReader { geo in
+        let contentMaxWidth: CGFloat = isIPad ? geo.size.width * 0.70 : .infinity
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
-            
+
             ScrollView {
-                VStack(spacing: 14) {
+                let columns = isIPad
+                    ? [GridItem(.flexible()), GridItem(.flexible())]
+                    : [GridItem(.flexible())]
+                LazyVGrid(columns: columns, spacing: 14) {
                     ForEach(ChallengeMode.allCases, id: \.rawValue) { mode in
                         NavigationLink(destination: ChallengeTestView(mode: mode)) {
                             ChallengeCard(mode: mode)
@@ -17,7 +26,10 @@ struct ChallengeMenuView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .padding(.bottom, 30)
+                .frame(maxWidth: contentMaxWidth)
+                .frame(maxWidth: .infinity)
             }
+        }
         }
         .navigationTitle("Challenge Mode")
         .navigationBarTitleDisplayMode(.large)
@@ -26,7 +38,9 @@ struct ChallengeMenuView: View {
 
 struct ChallengeCard: View {
     let mode: ChallengeMode
-    
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    var isIPad: Bool { horizontalSizeClass == .regular }
+
     var icon: String {
         switch mode {
         case .squares: return "square.on.square"
@@ -36,7 +50,7 @@ struct ChallengeCard: View {
         case .twoMinuteDrill: return "timer"
         }
     }
-    
+
     var color: Color {
         switch mode {
         case .squares: return Color(red: 0.9, green: 0.45, blue: 0.1)
@@ -46,50 +60,88 @@ struct ChallengeCard: View {
         case .twoMinuteDrill: return Color(red: 0.85, green: 0.25, blue: 0.25)
         }
     }
-    
+
     var timeLabel: String {
         if let t = mode.timeLimit {
             return t == 60 ? "1 minute" : "2 minutes"
         }
         return "Unlimited"
     }
-    
+
     var body: some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(color.opacity(0.15))
-                    .frame(width: 56, height: 56)
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(color)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
+        if isIPad {
+            // Square tile matching the home-page operation button size
+            VStack(spacing: 14) {
+                Spacer()
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 80, height: 80)
+                    Image(systemName: icon)
+                        .font(.system(size: 36))
+                        .foregroundStyle(color)
+                }
                 Text(mode.title)
-                    .font(.headline)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
                 Text(mode.description)
-                    .font(.caption)
+                    .font(.body)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                HStack {
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                HStack(spacing: 4) {
                     Image(systemName: "clock")
-                        .font(.caption2)
+                        .font(.callout)
                     Text(timeLabel)
-                        .font(.caption)
+                        .font(.callout)
                 }
                 .foregroundStyle(color)
+                Spacer()
             }
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .aspectRatio(1, contentMode: .fit)
+            .background(Color(.secondarySystemGroupedBackground))
+            .cornerRadius(18)
+        } else {
+            // Compact horizontal tile for iPhone
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(color.opacity(0.15))
+                        .frame(width: 56, height: 56)
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundStyle(color)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(mode.title)
+                        .font(.headline)
+                    Text(mode.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    HStack {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                        Text(timeLabel)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(color)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(16)
+            .background(Color(.secondarySystemGroupedBackground))
+            .cornerRadius(16)
         }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(16)
     }
 }
 
@@ -107,7 +159,7 @@ class ChallengeViewModel: ObservableObject {
     @Published var isFinished: Bool = false
     @Published var isTimeLow: Bool = false
     @Published var checkmarks: [Bool] = Array(repeating: false, count: 10) // for 10Q challenge
-    
+
     @Published var tenQIndex: Int = 0
 
     private var timer: Timer?
@@ -115,12 +167,12 @@ class ChallengeViewModel: ObservableObject {
     private var elapsedSeconds: Int = 0
     private var tenQuestionSet: [(question: String, answer: Int, operation: String)] = []
     private var startTime: Date = Date()
-    
+
     init(mode: ChallengeMode) {
         self.mode = mode
         setup()
     }
-    
+
     func setup() {
         switch mode {
         case .squares, .percentages, .multiplicationMadness, .twoMinuteDrill:
@@ -139,7 +191,7 @@ class ChallengeViewModel: ObservableObject {
             startStopwatch()
         }
     }
-    
+
     func nextQuestion() {
         switch mode {
         case .squares:
@@ -178,7 +230,7 @@ class ChallengeViewModel: ObservableObject {
             break
         }
     }
-    
+
     func loadTenQuestion() {
         guard tenQIndex < tenQuestionSet.count else {
             finishTenQuestion()
@@ -189,12 +241,12 @@ class ChallengeViewModel: ObservableObject {
         currentAnswer = q.answer
         currentOperation = q.operation
     }
-    
+
     func submitAnswer(_ text: String) {
         let correct = text == String(currentAnswer)
         if correct { numCorrect += 1 }
         questionCount += 1
-        
+
         switch mode {
         case .tenQuestion:
             if tenQIndex < 10 {
@@ -218,7 +270,7 @@ class ChallengeViewModel: ObservableObject {
             nextQuestion()
         }
     }
-    
+
     private func finishTenQuestion() {
         stopTimer()
         let elapsed = Int(Date().timeIntervalSince(startTime))
@@ -227,9 +279,9 @@ class ChallengeViewModel: ObservableObject {
         score = max(0, computed)
         isFinished = true
     }
-    
+
     private func startCountdown() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             self.remainingSeconds -= 1
             self.isTimeLow = self.remainingSeconds <= 10
@@ -240,18 +292,22 @@ class ChallengeViewModel: ObservableObject {
                 self.isFinished = true
             }
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
-    
+
     private func startStopwatch() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             self.elapsedSeconds += 1
             self.timeString = TestViewModel.secondsToTimeString(self.elapsedSeconds)
         }
+        RunLoop.main.add(t, forMode: .common)
+        timer = t
     }
-    
+
     func stopTimer() { timer?.invalidate(); timer = nil }
-    
+
     var finalTimeString: String { timeString }
 }
 
@@ -260,12 +316,13 @@ struct ChallengeTestView: View {
     @StateObject private var vm: ChallengeViewModel
     @State private var answerText: String = ""
     @Environment(\.dismiss) var dismiss
-    
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+
     init(mode: ChallengeMode) {
         self.mode = mode
         _vm = StateObject(wrappedValue: ChallengeViewModel(mode: mode))
     }
-    
+
     var color: Color {
         switch mode {
         case .squares: return Color(red: 0.9, green: 0.45, blue: 0.1)
@@ -275,79 +332,93 @@ struct ChallengeTestView: View {
         case .twoMinuteDrill: return Color(red: 0.85, green: 0.25, blue: 0.25)
         }
     }
-    
+
     var body: some View {
-        ZStack {
-            Color(.systemGroupedBackground).ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Button(action: { vm.stopTimer(); dismiss() }) {
-                        Text("Quit")
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Text(vm.timeString)
-                        .font(.system(size: 24, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(vm.isTimeLow ? .red : color)
-                    Spacer()
-                    if mode != .tenQuestion {
-                        Text("Score: \(vm.score)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("\(vm.tenQIndex)/10")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                
-                // 10Q progress dots
-                if mode == .tenQuestion {
-                    HStack(spacing: 8) {
-                        ForEach(0..<10, id: \.self) { i in
-                            Circle()
-                                .fill(i < vm.tenQIndex ? (vm.checkmarks[i] ? Color.green : Color.red) : Color(.systemFill))
-                                .frame(width: 10, height: 10)
+        GeometryReader { geo in
+            let isIPad      = horizontalSizeClass == .regular
+            let compactH    = geo.size.height < 700
+            let cardMaxWidth: CGFloat   = isIPad ? geo.size.width * 0.45 : (compactH ? 220 : 280)
+            let portraitFontSize: CGFloat = isIPad ? min(geo.size.width * 0.12, 120) : (compactH ? 62 : 84)
+            let squareFontSize: CGFloat  = isIPad ? min(geo.size.width * 0.065, 70) : (compactH ? 32 : 42)
+            let keyHeight: CGFloat      = isIPad ? min(geo.size.width * 0.085, 85) : (compactH ? 52 : 60)
+            let numpadMaxWidth: CGFloat  = isIPad ? geo.size.width * 0.60 : .infinity
+            let isPortrait = (mode == .tenQuestion || mode == .twoMinuteDrill)
+            let (challengeCard, questionLabel) = makeChallengeCard()
+
+            ZStack {
+                Color(.systemGroupedBackground).ignoresSafeArea()
+
+                VStack(spacing: 0) {
+                    // Header
+                    HStack {
+                        Button(action: { vm.stopTimer(); dismiss() }) {
+                            Text("Quit")
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(vm.timeString)
+                            .font(.system(size: 24, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(vm.isTimeLow ? .red : color)
+                        Spacer()
+                        if mode != .tenQuestion {
+                            Text("Score: \(vm.score)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("\(vm.tenQIndex)/10")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.bottom, 8)
-                }
-                
-                Spacer()
-                
-                // Question — reuse the same flashcard
-                // 10Q challenge and 2-min drill: same portrait ratio as main test
-                // Other modes: square with smaller text so expression fits one line
-                let isPortrait = (mode == .tenQuestion || mode == .twoMinuteDrill)
-                QuestionCardView(
-                        card: makeChallengeCard().card,
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, compactH ? 8 : 14)
+
+                    // 10Q progress dots
+                    if mode == .tenQuestion {
+                        HStack(spacing: 8) {
+                            ForEach(0..<10, id: \.self) { i in
+                                Circle()
+                                    .fill(i < vm.tenQIndex
+                                          ? (vm.checkmarks[i] ? Color.green : Color.red)
+                                          : Color(.systemFill))
+                                    .frame(width: 10, height: 10)
+                            }
+                        }
+                        .padding(.bottom, 8)
+                    }
+
+                    Spacer(minLength: compactH ? 4 : 12)
+
+                    // Question — reuse the same flashcard
+                    // 10Q challenge and 2-min drill: same portrait ratio as main test
+                    // Other modes: square with smaller text so expression fits one line
+                    QuestionCardView(
+                        card: challengeCard,
                         operation: challengeOperation(),
                         accentColor: color,
                         answerText: answerText,
-                        questionLabel: makeChallengeCard().label,
+                        questionLabel: questionLabel,
                         aspectRatio: isPortrait ? 3.0/4.0 : 1.0,
-                        fontSize: isPortrait ? 84 : 42
+                        fontSize: isPortrait ? portraitFontSize : squareFontSize,
+                        maxWidth: cardMaxWidth
                     )
-                .padding(.horizontal, 40)
-                .id(vm.questionCount)
-                .transition(.opacity)
-                .animation(.easeInOut(duration: 0.15), value: vm.questionCount)
-                
-                Spacer()
-                
-                NumpadView(accentColor: color) { key in
-                    switch key {
-                    case "⌫":
-                        if !answerText.isEmpty { answerText.removeLast() }
-                    case "✓":
-                        vm.submitAnswer(answerText)
-                        answerText = ""
-                    default:
-                        if answerText.count < 6 { answerText += key }
+                    .padding(.horizontal, 40)
+                    .id(vm.questionCount)
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.15), value: vm.questionCount)
+
+                    Spacer(minLength: compactH ? 4 : 12)
+
+                    NumpadView(accentColor: color, keyHeight: keyHeight, maxWidth: numpadMaxWidth, topSpacing: isIPad ? keyHeight / 2 : 0) { key in
+                        switch key {
+                        case "⌫":
+                            if !answerText.isEmpty { answerText.removeLast() }
+                        case "✓":
+                            vm.submitAnswer(answerText)
+                            answerText = ""
+                        default:
+                            if answerText.count < 6 { answerText += key }
+                        }
                     }
                 }
             }
@@ -411,14 +482,15 @@ struct ChallengeResultsView: View {
     let score: Int
     let numCorrect: Int
     let timeUsed: String
-    
-    @State private var playerName: String = ""
+
     @State private var highScores: [HighScore] = []
-    @State private var savedHighScoreId: Int64? = nil
-    @State private var isNameSaved: Bool = false
-    
-    var scoreMultiplier = 1000
-    
+    @State private var isHighScore: Bool = false
+    @State private var didEvaluateHighScore: Bool = false
+    @EnvironmentObject var navState: AppNavigationState
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+
+    var isIPad: Bool { horizontalSizeClass == .regular }
+
     var color: Color {
         switch mode {
         case .squares: return Color(red: 0.9, green: 0.45, blue: 0.1)
@@ -428,11 +500,13 @@ struct ChallengeResultsView: View {
         case .twoMinuteDrill: return Color(red: 0.85, green: 0.25, blue: 0.25)
         }
     }
-    
+
     var body: some View {
+        GeometryReader { geo in
+        let contentMaxWidth: CGFloat = isIPad ? geo.size.width * 0.70 : .infinity
         ZStack {
             Color(.systemGroupedBackground).ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(spacing: 20) {
                     // Score
@@ -440,15 +514,15 @@ struct ChallengeResultsView: View {
                         Text(mode.title)
                             .font(.headline)
                             .foregroundStyle(.secondary)
-                        
+
                         Text("\(score)")
                             .font(.system(size: 72, weight: .bold, design: .rounded))
                             .foregroundStyle(color)
-                        
+
                         Text("Score")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        
+
                         HStack(spacing: 20) {
                             VStack {
                                 Text("\(numCorrect)")
@@ -474,42 +548,24 @@ struct ChallengeResultsView: View {
                     .background(Color(.secondarySystemGroupedBackground))
                     .cornerRadius(16)
                     .padding(.horizontal, 20)
-                    
+
                     // High Scores
                     VStack(alignment: .leading, spacing: 12) {
                         Text("High Scores")
                             .font(.headline)
                             .padding(.horizontal, 20)
-                        
+
                         VStack(spacing: 1) {
-                            if DatabaseManager.shared.shouldInsertHighScore(mode: mode.rawValue, score: score) && !isNameSaved {
-                                // Enter name for new high score
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("🎉 New High Score!")
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundStyle(color)
-                                    TextField("Enter your name", text: $playerName)
-                                        .padding(10)
-                                        .background(Color(.systemFill))
-                                        .cornerRadius(8)
-                                    Button("Save Score") {
-                                        let insertedId = DatabaseManager.shared.insertHighScore(
-                                            mode: mode.rawValue, score: score, name: playerName.isEmpty ? "Anonymous" : playerName)
-                                        savedHighScoreId = insertedId
-                                        isNameSaved = true
-                                        highScores = DatabaseManager.shared.fetchHighScores(mode: mode.rawValue)
-                                    }
-                                    .padding(.vertical, 8)
-                                    .frame(maxWidth: .infinity)
-                                    .background(color)
-                                    .foregroundStyle(.white)
-                                    .cornerRadius(8)
-                                }
-                                .padding(14)
-                                .background(Color(.secondarySystemGroupedBackground))
+                            if isHighScore {
+                                Text("New high score saved")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(color)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(14)
+                                    .background(Color(.secondarySystemGroupedBackground))
                             }
-                            
+
                             ForEach(Array(highScores.enumerated()), id: \.element.id) { i, hs in
                                 HStack {
                                     Text("\(i + 1).")
@@ -531,7 +587,7 @@ struct ChallengeResultsView: View {
                         .cornerRadius(12)
                         .padding(.horizontal, 20)
                     }
-                    
+
                     // Buttons
                     VStack(spacing: 12) {
                         NavigationLink(destination: ChallengeTestView(mode: mode)) {
@@ -543,8 +599,10 @@ struct ChallengeResultsView: View {
                                 .foregroundStyle(.white)
                                 .cornerRadius(16)
                         }
-                        
-                        NavigationLink(destination: HomeView()) {
+
+                        Button {
+                            navState.goToRoot()
+                        } label: {
                             Text("Home")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
@@ -558,13 +616,30 @@ struct ChallengeResultsView: View {
                     .padding(.bottom, 30)
                 }
                 .padding(.top, 20)
+                .frame(maxWidth: contentMaxWidth)
+                .frame(maxWidth: .infinity)
             }
+        }
         }
         .navigationTitle("Results")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .onAppear {
-            highScores = DatabaseManager.shared.fetchHighScores(mode: mode.rawValue)
+            saveHighScoreIfNeeded()
         }
+    }
+
+    private func saveHighScoreIfNeeded() {
+        guard !didEvaluateHighScore else {
+            highScores = DatabaseManager.shared.fetchHighScores(mode: mode.rawValue)
+            return
+        }
+
+        didEvaluateHighScore = true
+        isHighScore = DatabaseManager.shared.shouldInsertHighScore(mode: mode.rawValue, score: score)
+        if isHighScore {
+            DatabaseManager.shared.insertHighScore(mode: mode.rawValue, score: score, name: "Anonymous")
+        }
+        highScores = DatabaseManager.shared.fetchHighScores(mode: mode.rawValue)
     }
 }

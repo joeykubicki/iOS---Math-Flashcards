@@ -6,6 +6,8 @@ struct SavedTestsView: View {
     @State private var tests: [TestResult] = []
     @State private var showDeleteConfirm = false
     @State private var searchText: String = ""
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    var isIPad: Bool { horizontalSizeClass == .regular }
     
     var filteredTests: [TestResult] {
         if searchText.isEmpty { return tests }
@@ -22,13 +24,13 @@ struct SavedTestsView: View {
             if tests.isEmpty {
                 VStack(spacing: 16) {
                     Image(systemName: "list.bullet.clipboard")
-                        .font(.system(size: 56))
+                        .font(.system(size: isIPad ? 80 : 56))
                         .foregroundStyle(.tertiary)
                     Text("No Saved Tests")
-                        .font(.title3)
+                        .font(isIPad ? .title : .title3)
                         .fontWeight(.semibold)
                     Text("Complete a test to see it here.")
-                        .font(.subheadline)
+                        .font(isIPad ? .title3 : .subheadline)
                         .foregroundStyle(.secondary)
                 }
             } else {
@@ -42,6 +44,20 @@ struct SavedTestsView: View {
                 }
                 .listStyle(.insetGrouped)
                 .searchable(text: $searchText, prompt: "Search by name or operation")
+                .overlay {
+                    if filteredTests.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 40))
+                                .foregroundStyle(.tertiary)
+                            Text("No results for \"\(searchText)\"")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemGroupedBackground))
+                    }
+                }
             }
         }
         .navigationTitle(filterByUser != nil ? "\(filterByUser!)'s Tests" : "Saved Tests")
@@ -76,14 +92,19 @@ struct SavedTestsView: View {
     }
     
     func deleteTests(at offsets: IndexSet) {
-        // For simplicity, reload — full individual delete could be added
+        for offset in offsets {
+            let test = filteredTests[offset]
+            DatabaseManager.shared.deleteTest(id: test.testId)
+        }
         loadTests()
     }
 }
 
 struct SavedTestRow: View {
     let test: TestResult
-    
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    var isIPad: Bool { horizontalSizeClass == .regular }
+
     var operationColor: Color {
         switch test.operation {
         case "Addition": return Color(red: 0.9, green: 0.3, blue: 0.3)
@@ -116,21 +137,21 @@ struct SavedTestRow: View {
             ZStack {
                 Circle()
                     .fill(operationColor.opacity(0.15))
-                    .frame(width: 44, height: 44)
+                    .frame(width: isIPad ? 60 : 44, height: isIPad ? 60 : 44)
                 Text(operationSign)
-                    .font(.system(size: 20, weight: .light))
+                    .font(.system(size: isIPad ? 28 : 20, weight: .light))
                     .foregroundStyle(operationColor)
             }
             
             VStack(alignment: .leading, spacing: 3) {
                 Text(test.user)
-                    .font(.subheadline)
+                    .font(isIPad ? .title3 : .subheadline)
                     .fontWeight(.semibold)
                 Text("\(test.operation) · \(test.difficultyLabel)")
-                    .font(.caption)
+                    .font(isIPad ? .subheadline : .caption)
                     .foregroundStyle(.secondary)
                 Text(test.date, style: .date)
-                    .font(.caption2)
+                    .font(isIPad ? .caption : .caption2)
                     .foregroundStyle(.tertiary)
             }
             
@@ -138,15 +159,15 @@ struct SavedTestRow: View {
             
             VStack(alignment: .trailing, spacing: 3) {
                 Text(test.score)
-                    .font(.subheadline)
+                    .font(isIPad ? .title3 : .subheadline)
                     .fontWeight(.bold)
                     .foregroundStyle(gradeColor)
                 Text(String(format: "%.0f%%", test.percentage))
-                    .font(.caption)
+                    .font(isIPad ? .subheadline : .caption)
                     .foregroundStyle(gradeColor.opacity(0.7))
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, isIPad ? 10 : 4)
     }
 }
 
@@ -156,6 +177,8 @@ struct SavedTestDetailView: View {
     let test: TestResult
     
     @State private var questions: [QuestionResult] = []
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    var isIPad: Bool { horizontalSizeClass == .regular }
     
     var operationColor: Color {
         switch test.operation {
@@ -202,29 +225,29 @@ struct SavedTestDetailView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(test.user)
-                                    .font(.title2)
+                                    .font(isIPad ? .largeTitle : .title2)
                                     .fontWeight(.bold)
                                 Text(test.date, style: .date)
-                                    .font(.subheadline)
+                                    .font(isIPad ? .title3 : .subheadline)
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
                             ZStack {
                                 Circle()
                                     .stroke(gradeColor.opacity(0.25), lineWidth: 8)
-                                    .frame(width: 70, height: 70)
+                                    .frame(width: isIPad ? 100 : 70, height: isIPad ? 100 : 70)
                                 Circle()
                                     .trim(from: 0, to: CGFloat(test.percentage / 100))
                                     .stroke(gradeColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                                    .frame(width: 70, height: 70)
+                                    .frame(width: isIPad ? 100 : 70, height: isIPad ? 100 : 70)
                                     .rotationEffect(.degrees(-90))
                                 VStack(spacing: 1) {
                                     Text(gradeLetter)
-                                        .font(.title3)
+                                        .font(isIPad ? .title2 : .title3)
                                         .fontWeight(.bold)
                                         .foregroundStyle(gradeColor)
                                     Text(String(format: "%.0f%%", test.percentage))
-                                        .font(.caption2)
+                                        .font(isIPad ? .caption : .caption2)
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -252,19 +275,19 @@ struct SavedTestDetailView: View {
                     // Questions list
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Questions")
-                            .font(.headline)
+                            .font(isIPad ? .title2 : .headline)
                             .padding(.horizontal, 20)
                         
                         VStack(spacing: 1) {
                             ForEach(questions) { q in
                                 HStack {
                                     Text("#\(q.questionNum)")
-                                        .font(.caption)
+                                        .font(isIPad ? .subheadline : .caption)
                                         .foregroundStyle(.secondary)
-                                        .frame(width: 28, alignment: .leading)
+                                        .frame(width: isIPad ? 40 : 28, alignment: .leading)
                                     
                                     Text("\(q.firstNum) \(operationSign) \(q.secondNum) = \(q.answer)")
-                                        .font(.system(.body, design: .monospaced))
+                                        .font(.system(isIPad ? .title3 : .body, design: .monospaced))
                                     
                                     Spacer()
                                     
@@ -277,14 +300,14 @@ struct SavedTestDetailView: View {
                                                 .foregroundStyle(.red)
                                             if !q.studentAnswer.isEmpty {
                                                 Text(q.studentAnswer)
-                                                    .font(.caption2)
+                                                    .font(isIPad ? .caption : .caption2)
                                                     .foregroundStyle(.red)
                                             }
                                         }
                                     }
                                 }
                                 .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
+                                .padding(.vertical, isIPad ? 14 : 10)
                                 .background(Color(.secondarySystemGroupedBackground))
                             }
                         }
@@ -309,15 +332,17 @@ struct DetailStat: View {
     let label: String
     let value: String
     let color: Color
-    
+    @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    var isIPad: Bool { horizontalSizeClass == .regular }
+
     var body: some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.subheadline)
+                .font(isIPad ? .title3 : .subheadline)
                 .fontWeight(.semibold)
                 .foregroundStyle(color)
             Text(label)
-                .font(.caption2)
+                .font(isIPad ? .caption : .caption2)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)
